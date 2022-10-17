@@ -1,27 +1,9 @@
 #!/bin/bash
-#Version=4.0
-# Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
+#Version=4.1
 
-#modified by somoore
-
-
+### AWS Profile Generation with SSO Account List ###
 ### User Defined Variables ###
-START_URL="https://[start-url].awsapps.com/start#/";
+START_URL="https://start-url.awsapps.com/start#/";
 #START_URL="https://[start-url].awsapps.com/start#/";
 REGION="us-east-1";
 
@@ -32,7 +14,12 @@ CONNECTIONFILE_DIR="$HOME/.steampipe/config"
 CONNECTIONFILE="${CONNECTIONFILE_DIR}/aws.spc"
 IGNORE_FILE="${HOME}/.aws/.ignore" 
 profilefile=${PROFILEFILE};
+AGGREGATOR_FILE="${CONNECTIONFILE_DIR}/aggregator.template"
 ### End of Variable Decleration ###
+
+echo "";
+echo "Started script for AWS Profile Generation with SSO...";
+echo "";
 
 ## Check AWS CLI Version 
 if [[ $(aws --version) == aws-cli/1* ]]; then
@@ -267,12 +254,12 @@ EOF
 			continue
 		fi
 	elif [[ ${PROFILE_ID_COUNT} -gt 1 ]]; then
-		echo "	 Multiple Profiles Detected for Account_Name: ${acctname}, SSO_Account_ID:${acctnum}, SSO_Role_Name: ${rolename}";
+		echo "	 Multiple Profile Detected for Account_Name: ${acctname}, SSO_Account_ID:${acctnum}, SSO_Role_Name: ${rolename}";
 		OLD_PROFILE_NAME=$(cat "$profilefile" | grep -e "sso_account_id = ${acctnum}" -A3 -B3 | grep -e "sso_role_name = $rolename" -A2 -B4 | grep "profile" | awk '{$1="";print}' | sed 's/\]//g'| sed 's/^[[:space:]]//g')
 		for PROFILE in ${OLD_PROFILE_NAME}; do
 			sed -i "/profile ${PROFILE}/,+6d" ${profilefile}
 		done
-#		echo -n "  Multiple Profiles Detected, Reconfiguring $profilename... "
+#		echo -n "  Multiple Profile Detected, Reconfiguring $profilename... "
 		add_profile  ## Function call to add profile
 
 		echo "Succeeded"
@@ -281,7 +268,7 @@ EOF
 
 	if [[ $(cat "$profilefile" | grep -ce "^\[profile ${profilename}\]$") -ne 0 ]]; then
 		update_profile
-		echo "Succeeded";
+#		echo "Succeeded";
 	fi
 
 	echo -n "  Creating New Profile $profilename... "
@@ -307,35 +294,33 @@ echo
 echo "Processing complete."
 echo
 
-echo
 cat $profilefile | awk '!NF {if (++n <= 1) print; next}; {n=0;print}' > ${profilefile}_$(date +"%Y%m%d")
 mv ${profilefile}_$(date +"%Y%m%d") $profilefile
 
 if [[ "${#created_profiles[@]}" -eq 0 ]]; then
-	echo "No Changes Found, There are no New Profiles in AWS!!";
-	echo "";
+	echo "	No Changes Found, There are no New Profile in AWS!!";
 ### Delete Unnecessery Last Lines
 
 	if [[ -z $(sed -n '$p' ${profilefile}) ]]; then >> /dev/null 2>&1
-		sed -i '$d' $profilefile
+		sed -i '$d' $profilefile >> /dev/null 2>&1
 	fi
 
-	tail -n1 $profilefile | grep "The section above added by awsssoprofiletool.sh TimeStamp:" >> /dev/null 2>&1
+	tail -n1 $profilefile | grep "The section above added by" >> /dev/null 2>&1
 	if [ $? -eq 0 ]; then
-		sed -i '$d' $profilefile
+		sed -i '$d' $profilefile >> /dev/null 2>&1
 	fi
 
 	if [[ -z $(sed -n '$p' ${profilefile}) ]]; then >> /dev/null 2>&1
-		sed -i '$d' $profilefile
+		sed -i '$d' $profilefile >> /dev/null 2>&1
 	fi
 
 	if [[ -z $(sed -n '$p' ${profilefile}) ]]; then >> /dev/null 2>&1
-		sed -i '$d' $profilefile
+		sed -i '$d' $profilefile >> /dev/null 2>&1
 	fi
 
-	tail -n1 $profilefile | grep "The section below added by awsssoprofiletool.sh TimeStamp:" >> /dev/null 2>&1
+	tail -n1 $profilefile | grep "The section below added by" >> /dev/null 2>&1
 	if [ $? -eq 0 ]; then
-		sed -i '$d' $profilefile
+		sed -i '$d' $profilefile >> /dev/null 2>&1
 	fi
 else
 	echo " Added the following profiles to $profilefile:"
@@ -362,6 +347,11 @@ for IP in ${IGNORE_PROFILES}; do
 	OLD_PROFILE=$(cat "$profilefile" | grep -e "${IP_SSO_AC_ID}" -A3 -B3 | grep -e "${IP_SSO_RN}" -A2 -B4 | grep "profile"| awk '{$1="";print}' | sed 's/\]//g'| sed 's/^[[:space:]]//g')
 	ignored_profiles+=("$OLD_PROFILE")
 done
+
+else
+	echo "";
+        echo "File for Ignore Profiles not found, Creating Empty file location: ${IGNORE_FILE} ...";
+        touch ${IGNORE_FILE};
 fi
 
 if [[ "${#ignored_profiles[@]}" -ne 0 ]]; then
@@ -375,6 +365,7 @@ fi
 echo "";
 
 ## AWS Config Profiles for Steampipe
+echo "Processing AWS Connections for Steampipe...";
 AWS_PROFILES=$(cat ${profilefile} | grep "^\[profile" | awk '{print $2}' | sed 's/\]//g' | sort)
 for ips in "${ignored_profiles[@]}"
 do
@@ -393,10 +384,11 @@ ignore_error_codes = ["AccessDenied", "AccessDeniedException", "NotAuthorized", 
 }
 EOF
 )
-	echo "$CONNECTION_VIEW" >> "$CONNECTIONFILE";
-	echo "" >> "$CONNECTIONFILE";
+	echo "${CONNECTION_VIEW}" >> "${CONNECTIONFILE}";
+	echo "" >> "${CONNECTIONFILE}";
 done
 
+### AGGREGATOR Default View ###
 AGGREGATOR_VIEW=$(cat <<EOF
 connection "aws_all" {
   type        = "aggregator"
@@ -405,8 +397,31 @@ connection "aws_all" {
 }
 EOF
 )
-echo "$AGGREGATOR_VIEW" >> "$CONNECTIONFILE"
-###########
+echo "${AGGREGATOR_VIEW}" >> "${CONNECTIONFILE}"
+
+### AGGREGATOR Connection for AGGREGATOR_FILE ###
+## Process aggregator.template connection file ##
+if [ -f ${AGGREGATOR_FILE} ]; then
+	echo "";
+	echo "Processing Aggregator Connections...";
+	AGGREGATORS_NAME=$(cat ${AGGREGATOR_FILE} | grep "^connection" | cut -d' ' -f2 | sed "s/\"//g")
+	if [ -z "${AGGREGATORS_NAME}" ]; then
+		echo "";
+		echo " No aggregator connection found in ${AGGREGATOR_FILE}";
+	else
+		for AGG_CONNECTION in ${AGGREGATORS_NAME}; do
+			AGGREGATOR_CONNECTION=$(perl -ane "if(/^connection \"${AGG_CONNECTION}\"/ ... /^}/){print}" ${AGGREGATOR_FILE});
+			echo "" >> "${CONNECTIONFILE}";
+			echo "${AGGREGATOR_CONNECTION}" >> "${CONNECTIONFILE}";
+		done
+	fi
+else
+	echo "";
+	echo "File for Aggregator Connections not found, Creating Empty file location: ${AGGREGATOR_FILE} ...";
+	touch ${AGGREGATOR_FILE};
+fi
+##########
+
 echo "";
 echo "AWS SSO Profile Sync Task Completed.";
 echo "";
