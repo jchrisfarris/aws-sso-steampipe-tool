@@ -1,5 +1,5 @@
 #!/bin/bash
-#Version=4.1
+#Version=4.2
 
 ### AWS Profile Generation with SSO Account List ###
 ### User Defined Variables ###
@@ -384,6 +384,13 @@ ignore_error_codes = ["AccessDenied", "AccessDeniedException", "NotAuthorized", 
 }
 EOF
 )
+	echo ${SC} | grep "_AWS_Account_" >> /dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		echo ${SC} | grep "_AWS_Account_1" >> /dev/null 2>&1
+		if [ $? -ne 0 ]; then
+			continue	
+		fi
+	fi
 	echo "${CONNECTION_VIEW}" >> "${CONNECTIONFILE}";
 	echo "" >> "${CONNECTIONFILE}";
 done
