@@ -227,7 +227,7 @@ do
 VIEW=$(cat <<EOF
 [profile ${profilename}]
 source_profile=default
-role_arn=aws:iam::[${AC_ID}]:role/[${ROLE_NAME}]
+role_arn=aws:iam::${AC_ID}:role/${ROLE_NAME}
 output=${OUTPUT_FORMAT}
 EOF
 )
