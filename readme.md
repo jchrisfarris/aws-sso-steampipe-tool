@@ -1,14 +1,17 @@
+
 ﻿# Getting Started with aws-sso-steampipe-tool
 
-**Note**: [aws-sso-steampipe-tool](https://github.com/somoore/aws-sso-steampipe-tool) is based on [aws-sso-profile-tool](https://github.com/aws-samples/aws-sso-profile-tool) from AWS. 
 
 **What does this do?**
 
-This tool generate profiles in your ~/.aws/config path based on your level of access in AWS SSO in a headless manner and also auto-generates the connections required for [Steampipe](https://steampipe.io/) to connect to one or many accounts using the [AWS](https://hub.steampipe.io/plugins/turbot/aws) plugin.
+This tool generate profiles in your ~/.aws/config path based on your level of access in AWS IAM Identity Center in a headless manner and also auto-generates the connections required for [Steampipe](https://steampipe.io/) to connect to one or many accounts using the [AWS](https://hub.steampipe.io/plugins/turbot/aws) plugin. 
 
-**What if I have multiple AWS accounts in AWS SSO?**
+**Not Using AWS IAM Identity Center?**
+That's okay, the tool supports IAM User w/role chaining as well. Ensure the IAM User or IAM Role utilizing this tool has Read permissions to query AWS Organizations to parse account number and account name. 
 
-This tool has been tested against AWS Orgs as large as 900 accounts with great success. The larger your AWS Org & SSO size the longer it will take for the tool to generate the necessary profiles and connections. YMMV
+**What if I have multiple AWS accounts?**
+
+This tool has great success scaling to thousands of AWS accounts across multiple AWS Organizations.
 
 **How do I run this?**
 
@@ -19,21 +22,26 @@ First make sure you have the following installed:
 
 git clone https://github.com/somoore/aws-sso-steampipe-tool.git  & open 'sync.sh' in your favorite editor and edit the following:
 
-#Add your AWS SSO Start URL & Region on the next two lines
+#Add your AWS IAM Identity Center Start URL & Region on lines 26 & 27:
  
 
-    START_URL="https://[start-url].awsapps.com/start#/"; 
-    REGION="us-east-1";
+     ### User Defined Variables ###
+    START_URL="https://start-url.awsapps.com/start#/";
+    REGION="us-east-1";  
 
 Now run
 
-    chmod +x
-    sh ./sync.sh
+    sh sync.sh sso 
 
 **Note** 
 You will be prompted to copy/paste a link to authenticate to AWS SSO. 
 Once this is complete, return to the terminal window and press [enter] to retrieve the token and run the rest of the tool. 
 
-Grab some coffee and you should see your AWS Accounts synced to ~/.aws/config & steampipe connections for the AWS plugin ~/.steampipe/config/aws.spc automatically.
+**IAM User w/Role Chaining**
+Ensure you update line 37 with whatever IAM Role your IAM User assumes cross account. The tool will then query all AWS accounts in the AWS Organization and pass in the IAM Role along with account number to form the ARN path for each ~/.aws/config [profile]. 
 
+    ROLE_NAME="secops_audit_role_example"
+    
+Then run
 
+    sh sync.sh org
