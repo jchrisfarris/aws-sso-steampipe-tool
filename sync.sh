@@ -24,7 +24,6 @@
 ##### Variable Declaration Area #####
 ### User Defined Variables ###
 START_URL="https://start-url.awsapps.com/start#/";
-#START_URL="https://[start-url].awsapps.com/start#/";
 REGION="us-east-1";
 
 ### AWS Profile Location Related Variables ###
