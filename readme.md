@@ -7,6 +7,7 @@
 This tool generate profiles in your ~/.aws/config path based on your level of access in AWS IAM Identity Center in a headless manner and also auto-generates the connections required for [Steampipe](https://steampipe.io/) to connect to one or many accounts using the [AWS](https://hub.steampipe.io/plugins/turbot/aws) plugin. 
 
 **Not Using AWS IAM Identity Center?**
+
 That's okay, the tool supports IAM User w/role chaining as well. Ensure the IAM User or IAM Role utilizing this tool has Read permissions to query AWS Organizations to parse account number and account name. 
 
 **What if I have multiple AWS accounts?**
