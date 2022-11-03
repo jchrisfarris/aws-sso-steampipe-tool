@@ -35,7 +35,7 @@ IGNORE_FILE="${HOME}/.aws/.ignore"
 profilefile=${PROFILEFILE};
 ROLE_NAME="secops_audit_role_example"
 OUTPUT_FORMAT="json";
-AGGREGATOR_FILE="${CONNECTIONFILE_DIR}/aggregator.template"
+AGGREGATOR_FILE="${CONNECTIONFILE_DIR}/aggregator.tf"
 CREDSFILE="${AWS_PROFILE_DIR}/credentials"
 # Set defaults for profiles
 defregion="${REGION}"
@@ -413,7 +413,7 @@ EOF
 echo "${AGGREGATOR_VIEW}" >> "${CONNECTIONFILE}";
 
 ### AGGREGATOR Connection for AGGREGATOR_FILE ###
-## Process aggregator.template connection file ##
+## Process aggregator.tf connection file ##
 if [ -f ${AGGREGATOR_FILE} ]; then
 	echo "";
 	echo "Processing Aggregator Connections...";
@@ -861,7 +861,7 @@ EOF
 echo "${AGGREGATOR_VIEW}" >> "${CONNECTIONFILE}"
 
 ### AGGREGATOR Connection for AGGREGATOR_FILE ###
-## Process aggregator.template connection file ##
+## Process aggregator.tf connection file ##
 if [ -f ${AGGREGATOR_FILE} ]; then
 	echo "";
 	echo "Processing Aggregator Connections...";
