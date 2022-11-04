@@ -23,24 +23,40 @@
 
 ##### Variable Declaration Area #####
 ### User Defined Variables ###
-START_URL="https://start-url.awsapps.com/start#/";
-REGION="us-east-1";
+if [ -z ${AWS_DEFAULT_REGION+x} ] ; then
+	REGION="us-east-1";
+else
+	REGION=$AWS_DEFAULT_REGION
+fi
+
+if [ -z ${STEAMPIPE_INSTALL_DIR+x} ] ; then
+	STEAMPIPE_INSTALL_DIR="$HOME/.steampipe"
+fi
+
+if [ -z ${AWS_CONFIG_FILE+x} ] ; then
+	AWS_CONFIG_FILE="$HOME/.aws/config"
+fi
+
+if [ -z ${AWS_SHARED_CREDENTIALS_FILE+x} ] ; then
+	AWS_SHARED_CREDENTIALS_FILE="$HOME/.aws/credentials"
+fi
+
 
 ### AWS Profile Location Related Variables ###
-AWS_PROFILE_DIR=${HOME}/.aws
-PROFILEFILE="${AWS_PROFILE_DIR}/config"
-CONNECTIONFILE_DIR="$HOME/.steampipe/config"
+AWS_PROFILE_DIR=`dirname $AWS_CONFIG_FILE`
+PROFILEFILE="$AWS_CONFIG_FILE"
+CONNECTIONFILE_DIR="${STEAMPIPE_INSTALL_DIR}/config"
 CONNECTIONFILE="${CONNECTIONFILE_DIR}/aws.spc"
-IGNORE_FILE="${HOME}/.aws/.ignore"
+IGNORE_FILE="${AWS_PROFILE_DIR}/.ignore"
 profilefile=${PROFILEFILE};
-ROLE_NAME="secops_audit_role_example"
 OUTPUT_FORMAT="json";
 AGGREGATOR_FILE="${CONNECTIONFILE_DIR}/aggregator.tf"
-CREDSFILE="${AWS_PROFILE_DIR}/credentials"
+CREDSFILE="$AWS_SHARED_CREDENTIALS_FILE"
 # Set defaults for profiles
 defregion="${REGION}"
 defoutput="json"
 ### End of User Defined Variables ###
+
 
 ### OS Type Detection ###
 uname -a | grep -i linux >> /dev/null 2>&1
@@ -61,12 +77,14 @@ echo "";
 cat << EOF
 This utility provides you the options needed to complete a command for $0
 
-Usage:  $0 sso 
-        $0 org
+Usage:  $0 sso <SSO Prefix>
+        $0 sso-granted <SSO Prefix>
+        $0 org <role_name>
 
 where CMD is one of the following:
-       sso   - To sync profile using Single Sign On.
-       org   - To Sync profile using Organization.
+       sso          - To sync profile using Single Sign On.
+       sso-granted  - To sync profile using Single Sign On and CommonFate's granted.
+       org          - To Sync profile using AWS Organizations Role.
 
 EOF
 echo "";
@@ -142,6 +160,14 @@ function aws_org() {
 echo "";
 echo "Started script for AWS Profile Generation with ORG...";
 echo "";
+
+if [ -z "$2" ] ; then
+	aws_print_usage
+	exit 1
+else
+	ROLE_NAME=$2
+fi
+
 
 DEFAULT_PROFILE=$(cat <<EOF
 [default]
@@ -476,6 +502,16 @@ echo "";
 echo "Started script for AWS Profile Generation with SSO...";
 echo "";
 
+if [ -z "$SSO_PREFIX" ] ; then
+	echo "Missing the AWS Identity Center Name: $SSO_PREFIX"
+	aws_print_usage
+	exit 1
+else
+	START_URL="https://${SSO_PREFIX}.awsapps.com/start#/";
+fi
+
+echo "Using $START_URL for your SSO Login"
+
 ##########
 DEFAULT_PROFILE=$(cat <<EOF
 [default]
@@ -652,6 +688,8 @@ do
 	fi
 	profilename=$Profile_Name
 
+if [ $CMD == "sso-granted" ] ; then
+
 VIEW=$(cat <<EOF
 [profile ${profilename}_${rolename}]
 granted_sso_start_url = ${START_URL}
@@ -663,6 +701,22 @@ output = $defoutput
 credential_process = granted credential-process --profile ${profilename}_${rolename}
 EOF
 )
+
+else
+
+VIEW=$(cat <<EOF
+[profile ${profilename}_${rolename}]
+sso_start_url = ${START_URL}
+sso_region = ${REGION}
+sso_account_id = $acctnum
+sso_role_name = $rolename
+region = $defregion
+output = $defoutput
+EOF
+)
+
+fi
+
 	PROFILE_ID_COUNT=$(cat "$profilefile" | grep -e "sso_account_id = ${acctnum}" -A4 -B3 | grep -ce "sso_role_name = $rolename" -A3 -B4) >> /dev/null 2>&1
 
 	if [[ ${PROFILE_ID_COUNT} -eq 1 ]]; then
@@ -927,33 +981,33 @@ if [[ -z "${1}" ]]; then
 fi
 ##### Command Validation Area #####
 
-if [ "$#" -ne 1 ]; then
-	echo "";
-	echo "Only one argument can be accepted";
-	aws_cmds
-	exit 2;
-fi
-
 CMD=""
 if [[ -n "$1" ]]; then
         case $1 in
                 sso)
-                        CMD=$1          # Main Command
+                        CMD=sso          # Main Command
+                        SSO_PREFIX=$2
+                        aws_sso
+                ;;
+                sso-granted)
+                        CMD=sso-granted  # Main Command
+                        SSO_PREFIX=$2
+                        aws_sso
                 ;;
                 org)
-                        CMD=$1          # Main Command
+                        CMD=org          # Main Command
+                        ROLE_NAME=$2
+                        aws_org
                 ;;
                 *)
-                        aws_cmds;
+                        aws_print_usage;
                         exit 1
                 ;;
         esac
 fi
 ##### Process Arguments Area #####
 
-##### Core Command for the script #####
-        aws_${CMD}
-##### Core Command for the script #####
+
 ### End of Variable Decleration ###
 
 ##### End of Script Execution #####
